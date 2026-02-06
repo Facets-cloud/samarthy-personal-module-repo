@@ -1,0 +1,49 @@
+{
+    "out": {
+        "attributes": {
+            "cluster_id": {},
+            "cluster_name": {},
+            "cluster_location": {},
+            "cluster_version": {},
+            "cloud_provider": {},
+            "cluster_endpoint": {},
+            "cluster_ca_certificate": {},
+            "kubernetes_provider_exec": {
+                "api_version": {},
+                "command": {},
+                "args": {
+                    "type": "array",
+                    "items": {}
+                }
+            },
+            "project_id": {},
+            "region": {},
+            "network": {},
+            "subnetwork": {},
+            "pods_range_name": {},
+            "services_range_name": {},
+            "auto_upgrade": {},
+            "release_channel": {},
+            "cluster_ipv4_cidr": {},
+            "master_authorized_networks_config": {},
+            "workload_identity_config_workload_pool": {},
+            "maintenance_policy_enabled": {},
+            "secrets": {}
+        },
+        "interfaces": {
+            "kubernetes": {
+                "host": {},
+                "cluster_ca_certificate": {},
+                "exec": {
+                    "api_version": {},
+                    "command": {},
+                    "args": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "secrets": {}
+            }
+        }
+    }
+}
