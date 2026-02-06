@@ -17,7 +17,7 @@ spec:
     enable_cost_allocation:
       type: boolean
       title: Enable Cost Allocation
-      description: Enable GKE cost allocation to track spending by namespace and workload in BigQuery billing export
+      description: TESTING - Enable cost allocation for billing insights. This is a GKE feature that allows you to allocate costs to specific labels for better cost management and visibility.
       default: false
       x-ui-override-disable: true
     whitelisted_cidrs:
