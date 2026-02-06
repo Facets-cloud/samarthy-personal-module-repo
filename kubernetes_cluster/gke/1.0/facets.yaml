@@ -121,7 +121,7 @@ outputs:
 sample:
   kind: kubernetes_cluster
   flavor: gke
-  version: '2.0'
+  version: '2.2'
   spec:
     auto_upgrade: true
     enable_cost_allocation: true
