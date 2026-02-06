@@ -1,35 +1,46 @@
 name: Publish Facets Modules
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+    types:
+      - closed
+
+env:
+  FACETS_USERNAME: praxis-git@facets.cloud
+  FACETS_TOKEN: ${{ secrets.FACETS_API_TOKEN }}
+  CONTROL_PLANE_URL: https://4788907041.facetsapp.cloud
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Need previous commit to detect changes
+          fetch-depth: 0
 
       - name: Install Raptor CLI
         run: |
-          curl -sSL https://facets-cloud.github.io/facets-cli/install.sh | bash
-          echo "$HOME/.facets/bin" >> $GITHUB_PATH
+          curl -LO https://github.com/Facets-cloud/raptor/releases/latest/download/raptor-linux-amd64
+          chmod +x raptor-linux-amd64
+          sudo mv raptor-linux-amd64 /usr/local/bin/raptor
 
-      - name: Configure Raptor
-        env:
-          FACETS_API_TOKEN: ${{ secrets.FACETS_API_TOKEN }}
-        run: |
-          raptor config set token "$FACETS_API_TOKEN"
+      - name: Verify Raptor auth
+        run: raptor whoami
 
       - name: Detect changed modules
         id: changes
         run: |
-          # Find changed directories containing facets.yaml
-          CHANGED_MODULES=$(git diff --name-only HEAD~1 HEAD | \
+          # Compare PR changes with base branch
+          BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+          COMPARE_REF="HEAD"
+
+          echo "Comparing $BASE_REF...$COMPARE_REF"
+
+          CHANGED_MODULES=$(git diff --name-only $BASE_REF $COMPARE_REF | \
             grep -E '^[^/]+/[^/]+/[^/]+/' | \
             sed 's|\([^/]*/[^/]*/[^/]*\)/.*|\1|' | \
             sort -u | \
@@ -45,31 +56,31 @@ jobs:
           else
             echo "Changed modules:"
             echo "$CHANGED_MODULES"
-            # Convert to JSON array for matrix
             MODULES_JSON=$(echo "$CHANGED_MODULES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
             echo "modules=$MODULES_JSON" >> $GITHUB_OUTPUT
           fi
 
-      - name: Publish changed modules
+      - name: Upload changed modules (PREVIEW)
         if: steps.changes.outputs.modules != '' && steps.changes.outputs.modules != '[]'
-        env:
-          FACETS_API_TOKEN: ${{ secrets.FACETS_API_TOKEN }}
         run: |
           MODULES='${{ steps.changes.outputs.modules }}'
 
           for MODULE_PATH in $(echo "$MODULES" | jq -r '.[]'); do
             echo "========================================"
-            echo "Publishing: $MODULE_PATH"
+            echo "Validating: $MODULE_PATH"
             echo "========================================"
 
-            # Upload module (creates or updates in PREVIEW stage)
+            # Validate module first
+            raptor create iac-module -f "$MODULE_PATH" --dry-run
+
+            echo "========================================"
+            echo "Uploading: $MODULE_PATH (PREVIEW)"
+            echo "========================================"
+
+            # Upload to PREVIEW stage (manual publish required)
             raptor create iac-module -f "$MODULE_PATH" --auto-create
 
-            # Extract intent/flavor/version from path
             MODULE_ID=$(echo "$MODULE_PATH" | tr '/' ' ' | awk '{print $1"/"$2"/"$3}')
-
-            # Publish to PUBLISHED stage
-            raptor publish iac-module "$MODULE_ID"
-
-            echo "✓ Published: $MODULE_ID"
+            echo "✓ Uploaded: $MODULE_ID (PREVIEW stage)"
+            echo "  To publish manually: raptor publish iac-module $MODULE_ID"
           done
