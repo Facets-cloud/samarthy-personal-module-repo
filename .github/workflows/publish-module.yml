@@ -10,7 +10,7 @@ on:
 env:
   FACETS_USERNAME: praxis-git@facets.cloud
   FACETS_TOKEN: ${{ secrets.FACETS_API_TOKEN }}
-  CONTROL_PLANE_URL: https://4788907041.facetsapp.cloud
+  CONTROL_PLANE_URL: https://facetsdemo.console.facets.cloud
 
 jobs:
   publish:
