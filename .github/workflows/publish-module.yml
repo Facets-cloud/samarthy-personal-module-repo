@@ -39,9 +39,15 @@ jobs:
       - name: Detect changed modules
         id: changes
         run: |
-          # Compare PR changes with base branch
-          BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          COMPARE_REF="HEAD"
+          # For merged PRs, compare the merge commit with its first parent (the previous main)
+          # This gives us all the files that were changed in the PR
+          if [ "${{ github.event.pull_request.merged }}" == "true" ]; then
+            BASE_REF="HEAD~1"
+            COMPARE_REF="HEAD"
+          else
+            BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+            COMPARE_REF="HEAD"
+          fi
 
           echo "Comparing $BASE_REF...$COMPARE_REF"
 
