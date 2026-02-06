@@ -1,0 +1,75 @@
+name: Publish Facets Modules
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need previous commit to detect changes
+
+      - name: Install Raptor CLI
+        run: |
+          curl -sSL https://facets-cloud.github.io/facets-cli/install.sh | bash
+          echo "$HOME/.facets/bin" >> $GITHUB_PATH
+
+      - name: Configure Raptor
+        env:
+          FACETS_API_TOKEN: ${{ secrets.FACETS_API_TOKEN }}
+        run: |
+          raptor config set token "$FACETS_API_TOKEN"
+
+      - name: Detect changed modules
+        id: changes
+        run: |
+          # Find changed directories containing facets.yaml
+          CHANGED_MODULES=$(git diff --name-only HEAD~1 HEAD | \
+            grep -E '^[^/]+/[^/]+/[^/]+/' | \
+            sed 's|\([^/]*/[^/]*/[^/]*\)/.*|\1|' | \
+            sort -u | \
+            while read dir; do
+              if [ -f "$dir/facets.yaml" ]; then
+                echo "$dir"
+              fi
+            done)
+
+          if [ -z "$CHANGED_MODULES" ]; then
+            echo "No module changes detected"
+            echo "modules=" >> $GITHUB_OUTPUT
+          else
+            echo "Changed modules:"
+            echo "$CHANGED_MODULES"
+            # Convert to JSON array for matrix
+            MODULES_JSON=$(echo "$CHANGED_MODULES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "modules=$MODULES_JSON" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish changed modules
+        if: steps.changes.outputs.modules != '' && steps.changes.outputs.modules != '[]'
+        env:
+          FACETS_API_TOKEN: ${{ secrets.FACETS_API_TOKEN }}
+        run: |
+          MODULES='${{ steps.changes.outputs.modules }}'
+
+          for MODULE_PATH in $(echo "$MODULES" | jq -r '.[]'); do
+            echo "========================================"
+            echo "Publishing: $MODULE_PATH"
+            echo "========================================"
+
+            # Upload module (creates or updates in PREVIEW stage)
+            raptor create iac-module -f "$MODULE_PATH" --auto-create
+
+            # Extract intent/flavor/version from path
+            MODULE_ID=$(echo "$MODULE_PATH" | tr '/' ' ' | awk '{print $1"/"$2"/"$3}')
+
+            # Publish to PUBLISHED stage
+            raptor publish iac-module "$MODULE_ID"
+
+            echo "✓ Published: $MODULE_ID"
+          done
