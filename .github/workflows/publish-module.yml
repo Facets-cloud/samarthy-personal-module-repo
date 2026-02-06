@@ -8,9 +8,9 @@ on:
       - closed
 
 env:
-  FACETS_USERNAME: praxis-git@facets.cloud
+  FACETS_USERNAME: samarthya@facets.cloud
   FACETS_TOKEN: ${{ secrets.FACETS_API_TOKEN }}
-  CONTROL_PLANE_URL: https://4788907041.facetsapp.cloud
+  CONTROL_PLANE_URL: https://facetsdemo.console.facets.cloud
 
 jobs:
   publish:
@@ -22,11 +22,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
       - name: Install Raptor CLI
         run: |
-          curl -LO https://github.com/Facets-cloud/raptor/releases/latest/download/raptor-linux-amd64
+          curl -LO https://github.com/Facets-cloud/raptor-releases/releases/latest/download/raptor-linux-amd64
           chmod +x raptor-linux-amd64
           sudo mv raptor-linux-amd64 /usr/local/bin/raptor
+
+      - name: Verify Raptor installation
+        run: |
+          ls -la /usr/local/bin/raptor
+          file /usr/local/bin/raptor
+          terraform version
 
       - name: Verify Raptor auth
         run: raptor whoami
@@ -34,9 +45,15 @@ jobs:
       - name: Detect changed modules
         id: changes
         run: |
-          # Compare PR changes with base branch
-          BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          COMPARE_REF="HEAD"
+          # For merged PRs, compare the merge commit with its first parent (the previous main)
+          # This gives us all the files that were changed in the PR
+          if [ "${{ github.event.pull_request.merged }}" == "true" ]; then
+            BASE_REF="HEAD~1"
+            COMPARE_REF="HEAD"
+          else
+            BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+            COMPARE_REF="HEAD"
+          fi
 
           echo "Comparing $BASE_REF...$COMPARE_REF"
 
