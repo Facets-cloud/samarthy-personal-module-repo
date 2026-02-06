@@ -100,6 +100,14 @@ resource "google_container_cluster" "primary" {
     evaluation_mode = "PROJECT_SINGLETON_POLICY_ENFORCE"
   }
 
+  # Cost allocation for billing insights
+  dynamic "cost_management_config" {
+    for_each = local.enable_cost_allocation ? [1] : []
+    content {
+      enabled = true
+    }
+  }
+
   # Logging configuration
   logging_config {
     enable_components = local.enabled_logging_components
